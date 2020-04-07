@@ -1,0 +1,65 @@
+
+
+
+Control PORT
+Transfer PORT
+
+
+* Client *
+
+`client.py <ADDRESS> <PORT>`
+
+- Print "ftp>" and wait for user input. (Every time the user presses Enter, a new line is created beginning with "ftp>")
+- When user types input into console, client must interpret that input. (e.g. ls, get, put)
+- Write a function for ls(), get(), put(). Each function will create a protocol message depedning on what the input is.
+	
+	For example, if user types "get somefile.txt", then the the function get(fileName) is called. And the function will create a message body like:
+
+		GET\n 								// What command
+		FILENAME: somefile.txt\n 			// What is the name of the file
+		\n 									// End of message
+
+		PUT\n 								// What command
+		FILENAME: clifile.txt\n 			// What is the name of the file
+		FILESIZE: 102800\n 					// What is the size of the file
+		\n 									// End of message
+
+		LS <directory>\n 					// What command (ls needs to know what directory also)
+		\n 									// End of message
+
+	Once the message body is created, then the client needs to get an available PORT to use for data transfer. Then the client needs to make a reuqest for the server to open that PORT. That will look like:
+
+		* ALl of this should be on the Control PORT. This is how a new Transfer PORT will be opened for use.
+
+		OPEN <port>\n
+		\n
+
+		If the server responds on the Control Port with 
+
+		ERROR <message>\n
+		\n
+
+		then the client will fail and return by outputting the message to the client console.
+
+		But if the server responds with 
+
+		OPENED <port>\n
+		\n
+
+		and also the connection is made on the client, then the client will send the message body (GET, PUT, LS, etc) to the server on that new Transfer PORT. After it is done, it will close the connection.
+
+
+* Server *
+
+`server.py <PORT>`
+
+- When the server receives data from the socket, it needs to read it line by line.
+	
+	First line is the command. If the first word is LS then the second argument is the directory.
+	Second line is the filename
+	Third is the filesize
+
+- Because we we know the filename and the filesize and the directory then we know that we can read that file.
+
+	If it is a GET request then call the get(filename, filesize) function 
+	This function will open a new ephmeral port on the same connection (same IPs and port) and then close that connection at the end once the server has sent all the file data.
