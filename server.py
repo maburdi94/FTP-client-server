@@ -1,90 +1,135 @@
+
+
 import socket
+from threading import Thread
+import traceback
 import sys
-import argparse
-import commands
-import os
-
-#Sets up message's header by socket name and data. 
-def set_data(socket_d, data):
-    message = str(len(data))
-    #data_size to be 10 
-    while len(message) < 10:
-        message = "0" + message
-
-    data = message + data
-    #Counter to keep track of data
-    sent = 0
-
-    #Sends all data
-    while sent != len(data):
-        sent += socket_d.send(data[sent:])
-        
-
-#Recieves data(bytes) from socket 
-def get_data(socket_d, numBytes):
-    #Buffers
-    buffers = ""
-    tmp = ""
-
-    #Recives all the data
-    while len(buffers) < numBytes:
-        tmp =  socket_d.set_header(numBytes)
-        if not tmp:
-            break
-        buffers += tmp
-    #returns data recived
-    return buffers
-
-#Recives header to set up connection before getting the data
-def set_header(socket_d):
-    data = ""
-    data_size = 0   
-    buff = ""
-    #Gets size of header
-    buff = get_data(socket_d, 10)
-    data_size = int(buff)
-    #recives the header from socket 
-    data = get_data(socket_d, data_size)
-    #sends header name to recv_data
-    return data
-    
-#Sets up and creates an obeject with an accepted connection
-def data_connection():
-    socket_s = socket.socket(socket.AF_INET ,socket.SOCK_STREAM)
-    #Open the connection
-    socket_s.bind(('',0))
-    socket_number = str(socket_s.getsockname()[1])
-    set_data(connection_socket,  socket_number)
-    socket_s.listen(1)
-    new_socket ,addr = socket_s.accept()
-    return new_socket
+import subprocess
 
 
-#--------------------------Program Begins---------------------------
-#Get the port number
-port_number = argparse.ArgumentParser(description="Server Starts")
-port_number.add_argument("port",  help="server port to start")
-conn = port_number.parse_args()
-server_conn = conn.port
+# The port on which to listen
+listenPort = 3000
 
-#Checks if it's valid or not
-if server_conn.isdigit():
-    server_conn = int(server_conn)
-else:
-    print("The port {} is not accepted".format(server_conn))
-    sys.exit()
+# Create a welcome socket. 
+welcomeSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-#Initialize the socket    
-server_socket = socket.socket(socket.AF_INET ,socket.SOCK_STREAM)
-server_socket.bind(('',server_conn))
+# Bind the socket to the port
+welcomeSock.bind(('', listenPort))
 
-#listens for one connection on the network
-server_socket.listen(1)
-print ('Server is running...')
-connection_socket ,addr = server_socket.accept()
-print ('Connected by', addr)
-data =''
+# Start listening on the socket
+welcomeSock.listen(4)
 
-#Wait for commands ls out 
-connection_socket.close()
-print("Command Socket is closed")
+
+def process_get(dataSock, *args):
+	print("GET ", *args)
+
+	try:
+		
+	except:
+		print("File doesn't exist.")
+		dataSock.send("500 Bad Request")
+
+
+
+def process_list(dataSock, *args):
+	print("LIST ", *args)
+
+	output = subprocess.check_output(["ls", "-l"]).decode()
+
+	print(output)
+
+	dataSock.send(bytes(output, 'utf-8'))
+
+
+
+def process_directive(clientSock, dataSock):
+	print("Processing directive.")
+
+	data = clientSock.recv(128).decode().split()
+
+	print(f"Data: {data}")
+
+	msg = data[0]
+
+	if msg == "GET":
+		process_get(dataSock, *data[1:])
+	elif msg == "LIST":
+		process_list(dataSock, *data[1:])
+
+
+
+
+
+
+def handleConnection(clientSock, address):
+
+	print(f"Accepted connection from client {address}")
+	
+	while True:
+
+		msg = clientSock.recv(32).decode()
+
+		if not msg:
+			break
+
+		cmd, port, *args = msg.split()
+
+		print(cmd, int(port), *args)
+
+		if cmd == "OPEN":
+
+			try:
+
+				print("Opening ", int(port))
+
+				# Create a TCP socket
+				dataSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+				# Connect to the server
+				dataSocket.connect((address[0], int(port)))
+
+				print("Opened")
+
+				# Let client know connection is open
+				clientSock.send(b"200 OK")
+
+				process_directive(clientSock, dataSocket)
+
+			except Exception as e:
+				print(e)
+			finally:
+				dataSocket.close()
+
+	print(f"Disconnect connection on {address}")
+	clientSock.close()
+
+
+		
+# Accept connections forever
+while True:
+	
+	print("Waiting for connections...")
+
+	try:
+		
+		# Accept connections
+		clientSock, addr = welcomeSock.accept()
+
+		Thread(target=handleConnection, args=(clientSock, addr)).start()
+
+	except:
+		break
+
+
+print("Sutting down")
+		
+# Close our side
+welcomeSock.close()
+	
+
+sys.exit();
+
+
+
+
+

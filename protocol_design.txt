@@ -5,8 +5,37 @@ Control PORT
 Transfer PORT
 
 
+
+---------- Message Formats -----------------
+Order of bytes received:
+
+OPEN <PORT>					 # Request server open PORT for data transfer
+
+	Sends back response
+
+		200 		 	 OK		means	server has connected to client on data port successfully
+		400	   SERVER ERROR		means	server could not successfully connect on data port
+
+GET <FILENAME>
+
+	Sends back response
+
+		Data
+
+			or...
+
+		500 	BAD REQUEST		means	
+		
+
+PUT <FILENAME> [<FILESIZE>]  # FILESIZE is only sent over network.
+
+LIST
+
+
+
 * Client *
 
+Starting client 
 `client.py <ADDRESS> <PORT>`
 
 - Print "ftp>" and wait for user input. (Every time the user presses Enter, a new line is created beginning with "ftp>")
@@ -14,18 +43,6 @@ Transfer PORT
 - Write a function for ls(), get(), put(). Each function will create a protocol message depedning on what the input is.
 	
 	For example, if user types "get somefile.txt", then the the function get(fileName) is called. And the function will create a message body like:
-
-		GET\n 								// What command
-		FILENAME: somefile.txt\n 			// What is the name of the file
-		\n 									// End of message
-
-		PUT\n 								// What command
-		FILENAME: clifile.txt\n 			// What is the name of the file
-		FILESIZE: 102800\n 					// What is the size of the file
-		\n 									// End of message
-
-		LS <directory>\n 					// What command (ls needs to know what directory also)
-		\n 									// End of message
 
 	Once the message body is created, then the client needs to get an available PORT to use for data transfer. Then the client needs to make a reuqest for the server to open that PORT. That will look like:
 
