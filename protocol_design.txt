@@ -4,8 +4,6 @@
 Control PORT
 Transfer PORT
 
-
-
 ---------- Message Formats -----------------
 Order of bytes received:
 
@@ -25,7 +23,7 @@ GET <FILENAME>
 			or...
 
 		500 	BAD REQUEST		means	
-		
+
 
 PUT <FILENAME> [<FILESIZE>]  # FILESIZE is only sent over network.
 

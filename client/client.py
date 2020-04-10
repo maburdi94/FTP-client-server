@@ -25,9 +25,7 @@ controlSocket.connect((address, controlPort))
 
 
 
-
-def process_get(*tokens):
-
+def get_data_socket(sock, address):
 	# Create a TCP socket
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -41,32 +39,51 @@ def process_get(*tokens):
 	s.listen(1)
 
 	# Ask server to connect for data transfer
-	controlSocket.send(f"OPEN {port}\n\n".encode())
-	status = controlSocket.recv(15).decode()
+	sock.send(f"OPEN {port}\n\n".encode())
+
+	# Accept connections
+	return s.accept()
+
+
+
+def process_get(filename="", newFilename="", *args):
+
+	if not filename:
+		print(f"Usage:\n\t GET <FILENAME> [<NEW_FILENAME>]") 
+		return
+
+	# Accept connections
+	dataSock, addr = get_data_socket(controlSocket, address);
+
+	# Send GET message
+	controlSocket.send(bytes("GET " + filename + "\n\n", 'utf-8'))
+
+	# Check server status
+	status = controlSocket.recv(24).decode()
 
 	print(status)
+
 	if status == "200 OK":
 
-		# Accept connections
-		dataSock, addr = s.accept()
+		try:
+			file = open(newFilename if newFilename else filename, "w")
 
-		filename = tokens[0][:32] 	# Trim to 32 Bytes according to spec.
+			while True:
 
-		controlSocket.send(bytes("GET " + filename + "\n\n", 'utf-8'))
+				data = dataSock.recv(1024).decode()
 
-		msg = ""
-		while True:
+				if not data:
+					break
 
-			data = dataSock.recv(1024).decode()
+				file.write(data)
 
-			if not data:
-				break
-
-			msg += data
-
-		print(msg)
-
-		dataSock.close()
+			print("File downloaded successfully.")
+		except Exception as e:
+			print("File not downloaded successfully. \n", e)
+		finally:
+			file.close()
+	
+	dataSock.close()
 
 
 def process_put(*tokens):
@@ -74,32 +91,16 @@ def process_put(*tokens):
 
 
 def process_list(*tokens):
-	print("LIST", *tokens)
 
-	# Create a TCP socket
-	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	dataSock, addr = get_data_socket(controlSocket, address);
 
-	# Bind to random port
-	s.bind((address,0))
+	controlSocket.send(bytes("LIST\n\n", 'utf-8'))
 
-	# Retrieve ephemeral port number
-	port = s.getsockname()[1]
-
-	# Start listening on the socket
-	s.listen(1)
-
-	# Ask server to connect for data transfer
-	controlSocket.send(f"OPEN {port}\n\n".encode())
-	status = controlSocket.recv(15).decode()
+	status = controlSocket.recv(24).decode()
 
 	print(status)
 
 	if status == "200 OK":
-
-		# Accept connections
-		dataSock, addr = s.accept()
-
-		controlSocket.send(bytes("LIST\n\n", 'utf-8'))
 
 		msg = ""
 		while True:

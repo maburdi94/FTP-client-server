@@ -20,21 +20,41 @@ welcomeSock.bind(('', listenPort))
 welcomeSock.listen(4)
 
 
-def process_get(dataSock, *args):
-	print("GET ", *args)
+def process_get(clientSock, dataSock, *args):
+
+	filename = args[0]
 
 	try:
-		
+		file = open(filename, "rb")
+
+		# This request can be succeeded
+		clientSock.send(b"200 OK")
+
+		while True:
+
+			data = file.read(128)
+
+			if not data:
+				break
+
+			dataSock.send(data)
+
+		file.close()
+
+	except FileNotFoundError:
+		clientSock.send(b"500 Bad Request")
 	except:
-		print("File doesn't exist.")
-		dataSock.send("500 Bad Request")
+		clientSock.send(b"400 Server Error")
 
 
 
-def process_list(dataSock, *args):
-	print("LIST ", *args)
+
+def process_list(clientSock, dataSock, *args):
 
 	output = subprocess.check_output(["ls", "-l"]).decode()
+
+	# This request can be succeeded
+	clientSock.send(b"200 OK")
 
 	print(output)
 
@@ -43,18 +63,14 @@ def process_list(dataSock, *args):
 
 
 def process_directive(clientSock, dataSock):
-	print("Processing directive.")
+	msg, *args = clientSock.recv(128).decode().split()
 
-	data = clientSock.recv(128).decode().split()
-
-	print(f"Data: {data}")
-
-	msg = data[0]
+	print(msg, *args)
 
 	if msg == "GET":
-		process_get(dataSock, *data[1:])
+		process_get(clientSock, dataSock, *args)
 	elif msg == "LIST":
-		process_list(dataSock, *data[1:])
+		process_list(clientSock, dataSock, *args)
 
 
 
@@ -80,18 +96,11 @@ def handleConnection(clientSock, address):
 
 			try:
 
-				print("Opening ", int(port))
-
 				# Create a TCP socket
 				dataSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 				# Connect to the server
 				dataSocket.connect((address[0], int(port)))
-
-				print("Opened")
-
-				# Let client know connection is open
-				clientSock.send(b"200 OK")
 
 				process_directive(clientSock, dataSocket)
 
