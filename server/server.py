@@ -6,6 +6,9 @@ import traceback
 import sys
 import subprocess
 
+# Module with ftp directive definitions
+import diretives
+
 
 # The port on which to listen
 listenPort = 3000
@@ -18,60 +21,6 @@ welcomeSock.bind(('', listenPort))
 
 # Start listening on the socket
 welcomeSock.listen(4)
-
-
-def process_get(clientSock, dataSock, *args):
-
-	filename = args[0]
-
-	try:
-		file = open(filename, "rb")
-
-		# This request can be succeeded
-		clientSock.send(b"200 OK")
-
-		while True:
-
-			data = file.read(128)
-
-			if not data:
-				break
-
-			dataSock.send(data)
-
-		file.close()
-
-	except FileNotFoundError:
-		clientSock.send(b"500 Bad Request")
-	except:
-		clientSock.send(b"400 Server Error")
-
-
-
-
-def process_list(clientSock, dataSock, *args):
-
-	output = subprocess.check_output(["ls", "-l"]).decode()
-
-	# This request can be succeeded
-	clientSock.send(b"200 OK")
-
-	print(output)
-
-	dataSock.send(bytes(output, 'utf-8'))
-
-
-
-def process_directive(clientSock, dataSock):
-	msg, *args = clientSock.recv(128).decode().split()
-
-	print(msg, *args)
-
-	if msg == "GET":
-		process_get(clientSock, dataSock, *args)
-	elif msg == "LIST":
-		process_list(clientSock, dataSock, *args)
-
 
 
 
@@ -88,29 +37,49 @@ def handleConnection(clientSock, address):
 		if not msg:
 			break
 
+		# OPEN <port>
 		cmd, port, *args = msg.split()
 
-		print(cmd, int(port), *args)
-
-		if cmd == "OPEN":
+		#  Client requested data transfer on port <port>
+		if cmd == "OPEN" and port:
 
 			try:
 
-				# Create a TCP socket
+				# Set up a TCP connection socket for the transfer
 				dataSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-				# Connect to the server
+				# And connect to the client on the requested port number
 				dataSocket.connect((address[0], int(port)))
 
-				process_directive(clientSock, dataSocket)
+
+				# Listen for incoming commands on the client socket
+				# (This will pause program execution at this line)
+				msg, *args = clientSock.recv(128).decode().split()
+
+
+				# Use the appropriate handler for the command received
+
+				# Process GET request
+				if msg == "GET":
+					process_get(clientSock, dataSock, *args)
+
+				# Process LIST request
+				elif msg == "LIST":
+					process_list(clientSock, dataSock, *args)
+
 
 			except Exception as e:
 				print(e)
+
 			finally:
 				dataSocket.close()
 
+
 	print(f"Disconnect connection on {address}")
 	clientSock.close()
+
+
+
 
 
 		
@@ -121,13 +90,15 @@ while True:
 
 	try:
 		
-		# Accept connections
+		# Accept connections on welcome socket
 		clientSock, addr = welcomeSock.accept()
 
+		# Open a new running thread for the client socket
 		Thread(target=handleConnection, args=(clientSock, addr)).start()
 
 	except:
 		break
+
 
 
 print("Sutting down")
