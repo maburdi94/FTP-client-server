@@ -71,7 +71,49 @@ def process_get(*tokens):
 
 def process_put(*tokens):
 	print("PUT", *tokens)
-
+	# Upload a file
+	print("\nUploading file: {}...".format(filename))
+	try:
+		# Check the file exists
+		content = open(filename, "rb")
+	except:
+		print("Couldn't open file. Make sure the file name was entered correctly.")
+		return
+	try:
+		# Make upload request
+		s.send("UPLD")
+	except:
+		print("Couldn't make server request. Make sure a connection has bene established.")
+		return
+	try:
+		# Wait for server acknowledgement then send file details
+		# Wait for server ok
+		s.recv(BUFFER_SIZE)
+		# Send file name size and file name
+		s.send(struct.pack("h", sys.getsizeof(filename)))
+		s.send(filename)
+		# Wait for server ok then send file size
+		s.recv(BUFFER_SIZE)
+		s.send(struct.pack("i", os.path.getsize(filename)))
+	except:
+		print("Error sending file details")
+	try:
+		# Send the file in chunks defined by BUFFER_SIZE
+		# Doing it this way allows for unlimited potential file sizes to be sent
+		l = content.read(BUFFER_SIZE)
+		print("\nSending...")
+		while l:
+			s.send(l)
+			l = content.read(BUFFER_SIZE)
+			content.close()
+			# Get upload performance details
+			upload_time = struct.unpack("f", s.recv(4))[0]
+			upload_size = struct.unpack("i", s.recv(4))[0]
+			print("\nSent file: {}\nTime elapsed: {}s\nFile size: {}b".format(filename, upload_time, upload_size))
+	except:
+		print ("Error sending file")
+		return
+		# return
 
 def process_list(*tokens):
 	print("LIST", *tokens)
